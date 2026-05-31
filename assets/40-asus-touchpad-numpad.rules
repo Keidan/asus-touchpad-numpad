@@ -1,0 +1,3 @@
+KERNEL=="uinput", GROUP="uinput", MODE="0660", RUN+="/usr/bin/setfacl -m g:uinput:rw /dev/uinput"
+KERNEL=="i2c-*", GROUP="i2c", MODE="0660"
+SUBSYSTEM=="input", GROUP="input", MODE="0660"

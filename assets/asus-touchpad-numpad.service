@@ -1,0 +1,16 @@
+[Unit]
+Description=ASUS Touchpad Numpad Driver
+After=multi-user.target
+
+[Service]
+Type=simple
+ExecStart=/opt/asus-touchpad-numpad/asus-touchpad-numpad
+WorkingDirectory=/opt/asus-touchpad-numpad
+TimeoutSec=0
+Restart=on-failure
+RestartSec=3
+User=asus-numpad
+Group=input
+
+[Install]
+WantedBy=multi-user.target

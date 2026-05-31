@@ -1,0 +1,183 @@
+{
+  "log_level": "info",
+  "identify": {
+    "max_attempts": 5,
+    "retry_delay_ms": 100
+  },
+  "layout_name": "auto",
+  "layouts": [
+    {
+      "name": "g533qr",
+      "cols": 5,
+      "rows": 4,
+      "zones": {
+        "numlock": {
+          "x_min": 0.8,
+          "x_max": 1.0,
+          "y_min": 0.0,
+          "y_max": 0.24
+        },
+        "brightness_calculator": {
+          "x_min": 0.0,
+          "x_max": 0.06,
+          "y_min": 0.0,
+          "y_max": 0.07
+        }
+      },
+      "double_tap_delay_ms": 250,
+      "allow_calculator": true,
+      "top_offset": 0.1,
+      "keymap": [
+        [
+          "KEY_KP7",
+          "KEY_KP8",
+          "KEY_KP9",
+          "KEY_KPSLASH",
+          "KEY_BACKSPACE"
+        ],
+        [
+          "KEY_KP4",
+          "KEY_KP5",
+          "KEY_KP6",
+          "KEY_KPASTERISK",
+          "KEY_BACKSPACE"
+        ],
+        [
+          "KEY_KP1",
+          "KEY_KP2",
+          "KEY_KP3",
+          "KEY_KPMINUS",
+          "KEY_KPENTER"
+        ],
+        [
+          "KEY_KP0",
+          "KEY_KP0",
+          "KEY_KPDOT",
+          "KEY_KPPLUS",
+          "KEY_KPENTER"
+        ]
+      ],
+      "brightness_levels": {
+        "low": 31,
+        "med": 24,
+        "high": 1
+      }
+    },
+    {
+      "name": "ux433fa",
+      "cols": 5,
+      "rows": 4,
+      "zones": {
+        "numlock": {
+          "x_min": 0.95,
+          "x_max": 1.0,
+          "y_min": 0.0,
+          "y_max": 0.09
+        },
+        "brightness_calculator": {
+          "x_min": 0.0,
+          "x_max": 0.06,
+          "y_min": 0.0,
+          "y_max": 0.07
+        }
+      },
+      "double_tap_delay_ms": 250,
+      "allow_calculator": true,
+      "top_offset": 0.1,
+      "keymap": [
+        [
+          "KEY_KP7",
+          "KEY_KP8",
+          "KEY_KP9",
+          "KEY_KPSLASH",
+          "KEY_BACKSPACE"
+        ],
+        [
+          "KEY_KP4",
+          "KEY_KP5",
+          "KEY_KP6",
+          "KEY_KPASTERISK",
+          "KEY_BACKSPACE"
+        ],
+        [
+          "KEY_KP1",
+          "KEY_KP2",
+          "KEY_KP3",
+          "KEY_KPMINUS",
+          "KEY_KPENTER"
+        ],
+        [
+          "KEY_KP0",
+          "KEY_KP0",
+          "KEY_KPDOT",
+          "KEY_KPPLUS",
+          "KEY_KPENTER"
+        ]
+      ],
+      "brightness_levels": {
+        "low": 1,
+        "med": 24,
+        "high": 31
+      }
+    },
+    {
+      "name": "gx701",
+      "cols": 4,
+      "rows": 5,
+      "zones": {
+        "numlock": {
+          "x_min": 0.95,
+          "x_max": 1.0,
+          "y_min": 0.0,
+          "y_max": 0.09
+        },
+        "brightness_calculator": {
+          "x_min": 0.0,
+          "x_max": 0.06,
+          "y_min": 0.0,
+          "y_max": 0.07
+        }
+      },
+      "double_tap_delay_ms": 250,
+      "allow_calculator": true,
+      "top_offset": 0.0,
+      "keymap": [
+        [
+          "KEY_CALC",
+          "KEY_KPSLASH",
+          "KEY_KPASTERISK",
+          "KEY_KPMINUS"
+        ],
+        [
+          "KEY_KP7",
+          "KEY_KP8",
+          "KEY_KP9",
+          "KEY_KPPLUS"
+        ],
+        [
+          "KEY_KP4",
+          "KEY_KP5",
+          "KEY_KP6",
+          "KEY_KPPLUS"
+        ],
+        [
+          "KEY_KP1",
+          "KEY_KP2",
+          "KEY_KP3",
+          "KEY_KPENTER"
+        ],
+        [
+          "KEY_KP0",
+          "KEY_KP0",
+          "KEY_KPDOT",
+          "KEY_KPENTER"
+        ]
+      ],
+      "brightness_levels": {
+        "low": 31,
+        "med": 24,
+        "high": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+name: Build and Package
+
+# Trigger conditions
+on:
+  push:
+    branches:
+      - '**' # Trigger on push to all branchs
+    tags:
+      - 'v*.*'           # match v1.2, v12.34, v1.2.3...
+      - 'v*.*.*'         # match v1.2.3, v0.10.12, etc.
+  pull_request:
+    types: 
+      # Trigger when PR is created or updated
+      - opened
+      - synchronize
+      - reopened
+  workflow_dispatch: # Manual trigger from the GitHub UI
+
+# Default to read-only access; individual jobs can escalate as needed
+permissions:
+  contents: read
+
+jobs:
+  build-and-package:
+    runs-on: ubuntu-latest
+    # Needs write access to upload artifacts and create GitHub releases
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      # Install the stable Rust toolchain (rustc + cargo)
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      # Cache Cargo registry, git sources and the build target directory
+      # to speed up subsequent runs
+      - name: Cache Cargo registry
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      # Install native libraries required to compile the crate,
+      # and fpm to build .deb / .rpm packages
+      - name: Install system dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            libsystemd-dev \
+            libudev-dev \
+            ruby \
+            ruby-dev \
+            gcc \
+            make
+          sudo gem install fpm
+
+      - name: Build release binary
+        run: cargo build --release
+
+      # Run the analysis with SonarCloud
+      - name: SonarCloud analysis
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+      # Invoke the packaging script which produces *.deb and *.rpm
+      # in the workspace root using fpm
+      - name: Build .deb and .rpm packages
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          ./create_packages.sh
+
+      # Only upload artifacts when the workflow was triggered by a tag push
+      - name: Upload .deb artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v7
+        with:
+          name: deb-package
+          path: "*.deb"
+          if-no-files-found: error
+
+      - name: Upload .rpm artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v7
+        with:
+          name: rpm-package
+          path: "*.rpm"
+          if-no-files-found: error
+
+      # Strip the leading 'v' from the tag to get a bare version number
+      # e.g. v0.1.0 -> TAG_NAME=v0.1.0, VERSION_NUMBER=0.1.0
+      - name: Parse version number
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          TAG_NAME=${{ github.ref_name }}
+          echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_ENV
+          echo "VERSION_NUMBER=${TAG_NAME#v}" >> $GITHUB_ENV
+
+      # Extract only the section of CHANGELOG.md that matches the current
+      # version, so the release body does not include older entries
+      - name: Read changelog content
+        if: startsWith(github.ref, 'refs/tags/')
+        id: changelog
+        run: |
+          CHANGELOG_FILE=CHANGELOG.md
+          if [ ! -f "$CHANGELOG_FILE" ]; then
+            echo "::error::Changelog file not found: $CHANGELOG_FILE"
+            exit 1
+          fi
+          # Extract the block between “## [VERSION]” and the next “## [” or the end of the file
+          CONTENT=$(awk "/^## \[$VERSION_NUMBER\]/{found=1; next} found && /^## \[/{exit} found{print}" "$CHANGELOG_FILE")
+          if [ -z "$CONTENT" ]; then
+            echo "::error::No changelog entry found for version $VERSION_NUMBER"
+            exit 1
+          fi
+          printf "content<<EOF\n%s\nEOF\n" "$CONTENT" >> $GITHUB_OUTPUT
+
+      # Create a GitHub release, attach the packages and populate the body
+      # with the changelog section extracted above
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ env.TAG_NAME }}
+          name: Version ${{ env.VERSION_NUMBER }}
+          body: ${{ steps.changelog.outputs.content }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          make_latest: true
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            *.deb
+            *.rpm
