@@ -327,13 +327,7 @@ Brightness values are raw bytes written directly to the numpad I2C controller at
 
 Detection reads `KEYMAP=` from `/etc/vconsole.conf`, then falls back to `localectl status`.
 
----*
-
-## Contributors
-
-[See the full list][contributors]
-
----*
+---
 
 ## License
 
