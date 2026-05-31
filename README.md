@@ -2,6 +2,15 @@
 [![Build Status](https://github.com/Keidan/asus-touchpad-numpad/actions/workflows/build.yml/badge.svg)][build]
 [![Release](https://img.shields.io/github/v/release/Keidan/asus-touchpad-numpad.svg?logo=github)][releases]
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)][license]
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=bugs)][sonarcloud]
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=code_smells)][sonarcloud]
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=duplicated_lines_density)][sonarcloud]
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=vulnerabilities)][sonarcloud]
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=sqale_rating)][sonarcloud]
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=reliability_rating)][sonarcloud]
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=security_rating)][sonarcloud]
+[![Technical Debt](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=sqale_index)][sonarcloud]
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=Keidan_asus-touchpad-numpad&metric=ncloc)][sonarcloud]
 
 A userspace driver that turns the touchpad of supported ASUS laptops into a software numpad overlay. 
 
@@ -332,5 +341,5 @@ Detection reads `KEYMAP=` from `/etc/vconsole.conf`, then falls back to `localec
 
 [build]: https://github.com/Keidan/asus-touchpad-numpad/actions
 [releases]: https://github.com/Keidan/asus-touchpad-numpad/releases
-[license]: https://github.com/Keidan/asus-touchpad-numpad/blob/master/license.txt*
-[contributors]: https://github.com/Keidan/asus-touchpad-numpad/blob/master/CONTRIBUTORS.md*
+[license]: https://github.com/Keidan/asus-touchpad-numpad/blob/master/license.txt
+[sonarcloud]: https://sonarcloud.io/summary/new_code?id=Keidan_asus-touchpad-numpad
