@@ -74,11 +74,7 @@ impl Config {
             .iter()
             .find(|layout| layout.name == name)
             .ok_or_else(|| {
-                format!(
-                    "The name '{}' was not found in the list of layouts",
-                    name
-                )
-                .into()
+                format!("The name '{}' was not found in the list of layouts", name).into()
             })
     }
 }
