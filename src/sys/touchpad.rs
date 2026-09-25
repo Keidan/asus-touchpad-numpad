@@ -347,9 +347,8 @@ impl Touchpad {
             return self.layout.brightness_levels.med;
         } else if Brightness::High == *brightness {
             return self.layout.brightness_levels.high;
-        } else {
-            return 0;
         }
+        return 0;
     }
 
     /// Writes a raw byte slice to the touchpad controller over I2C.
