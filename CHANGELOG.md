@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [0.2.0] - 2026-09-25
+
+### Added
+
+- Configurable numpad activation gesture per layout via the new `activation` object (`mode`: `"single"`, `"double"` or `"long"`, plus `delay_ms`).
+
+### Changed
+
+- The `double_tap_delay_ms` layout field is replaced by `activation.delay_ms`. Existing custom layouts must be migrated to the new `activation` object, e.g. `"activation": { "mode": "double", "delay_ms": 250 }` (breaking change).
+
+---
+
 ## [0.1.0] - 2026-05-31
 
 ### Added
