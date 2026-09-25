@@ -29,18 +29,18 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #v7.0.1
         with:
           fetch-depth: 0
 
       # Install the stable Rust toolchain (rustc + cargo)
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
+      
       # Cache Cargo registry, git sources and the build target directory
       # to speed up subsequent runs
       - name: Cache Cargo registry
-        uses: actions/cache@v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 #v6.1.0
         with:
           path: |
             ~/.cargo/registry
@@ -49,6 +49,10 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
+
+      # Install cyclonedx
+      - name: Install cargo-cyclonedx
+        run: cargo install cargo-cyclonedx
 
       # Install native libraries required to compile the crate,
       # and fpm to build .deb / .rpm packages
@@ -64,12 +68,13 @@ jobs:
             make
           sudo gem install fpm
 
+      # Build release binary
       - name: Build release binary
         run: cargo build --release
 
       # Run the analysis with SonarCloud
       - name: SonarCloud analysis
-        uses: SonarSource/sonarqube-scan-action@v8
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 #v8.2.2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
@@ -81,10 +86,58 @@ jobs:
         run: |
           ./create_packages.sh
 
+      # Generate SBOM file
+      - name: Generate CycloneDX SBOM
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          cargo cyclonedx --format json --spec-version 1.5 --describe binaries
+      - name: Normalize local bom-refs
+        run: |
+          jq '                                                                
+          def clean_purl: sub("\\?download_url=[^#]*"; "") | sub("#.*$"; "");
+          (
+              [.. | objects
+              | select(has("bom-ref") and has("purl"))
+              | {key: ."bom-ref", value: (.purl | clean_purl)}
+              ] | from_entries
+          ) as $map
+          | walk(if type == "object" and has("purl") then .purl |= clean_purl else . end)
+          | walk(if type == "string" and in($map) then $map[.] else . end)
+          ' asus-touchpad-numpad_bin.cdx.json > tmp.json && mv tmp.json asus-touchpad-numpad_bin.cdx.json
+      - name: Find package files
+        if: startsWith(github.ref, 'refs/tags/')
+        id: find_pkgs
+        run: |
+          echo "deb=$(ls *.deb)" >> $GITHUB_OUTPUT
+          echo "rpm=$(ls *.rpm)" >> $GITHUB_OUTPUT
+      - name: Generate SBOM for .deb
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26  # v0.24.2
+        with:
+          file: ${{ steps.find_pkgs.outputs.deb }}
+          format: cyclonedx-json
+          output-file: deb-sbom.cdx.json
+          upload-artifact: false
+      - name: Generate SBOM for .rpm
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26
+        with:
+          file: ${{ steps.find_pkgs.outputs.rpm }}
+          format: cyclonedx-json
+          output-file: rpm-sbom.cdx.json
+          upload-artifact: false
       # Only upload artifacts when the workflow was triggered by a tag push
+      - name: Upload SBOM artifact
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        with:
+          name: sbom
+          path: asus-touchpad-numpad_bin.cdx.json
+          if-no-files-found: error
+
       - name: Upload .deb artifact
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: deb-package
           path: "*.deb"
@@ -92,7 +145,7 @@ jobs:
 
       - name: Upload .rpm artifact
         if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: rpm-package
           path: "*.rpm"
@@ -130,7 +183,7 @@ jobs:
       # with the changelog section extracted above
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 #v3.0.3
         with:
           tag_name: ${{ env.TAG_NAME }}
           name: Version ${{ env.VERSION_NUMBER }}
@@ -142,3 +195,6 @@ jobs:
           files: |
             *.deb
             *.rpm
+            asus-touchpad-numpad_bin.cdx.json
+            deb-sbom.cdx.json
+            rpm-sbom.cdx.json
