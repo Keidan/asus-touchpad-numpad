@@ -23,6 +23,9 @@ permissions:
 jobs:
   build-and-package:
     runs-on: ubuntu-latest
+
+    env:
+      PKG_NAME: asus-touchpad-numpad
     # Needs write access to upload artifacts and create GitHub releases
     permissions:
       contents: write
@@ -104,7 +107,7 @@ jobs:
           ) as $map
           | walk(if type == "object" and has("purl") then .purl |= clean_purl else . end)
           | walk(if type == "string" and in($map) then $map[.] else . end)
-          ' asus-touchpad-numpad_bin.cdx.json > tmp.json && mv tmp.json asus-touchpad-numpad_bin.cdx.json
+          ' ${{ env.PKG_NAME }}_bin.cdx.json > tmp.json && mv tmp.json ${{ env.PKG_NAME }}-sbom-bin.cdx.json
       - name: Find package files
         if: startsWith(github.ref, 'refs/tags/')
         id: find_pkgs
@@ -117,7 +120,7 @@ jobs:
         with:
           file: ${{ steps.find_pkgs.outputs.deb }}
           format: cyclonedx-json
-          output-file: deb-sbom.cdx.json
+          output-file: ${{ env.PKG_NAME }}-sbom-deb.cdx.json
           upload-artifact: false
       - name: Generate SBOM for .rpm
         if: startsWith(github.ref, 'refs/tags/')
@@ -125,15 +128,20 @@ jobs:
         with:
           file: ${{ steps.find_pkgs.outputs.rpm }}
           format: cyclonedx-json
-          output-file: rpm-sbom.cdx.json
+          output-file: ${{ env.PKG_NAME }}-sbom-rpm.cdx.json
           upload-artifact: false
+      - name: Format .deb/.rpm SBOM
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          jq . ${{ env.PKG_NAME }}-sbom-deb.cdx.json > tmp.json && mv tmp.json ${{ env.PKG_NAME }}-sbom-deb.cdx.json
+          jq . ${{ env.PKG_NAME }}-sbom-rpm.cdx.json > tmp.json && mv tmp.json ${{ env.PKG_NAME }}-sbom-rpm.cdx.json
       # Only upload artifacts when the workflow was triggered by a tag push
       - name: Upload SBOM artifact
         if: startsWith(github.ref, 'refs/tags/')
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: sbom
-          path: asus-touchpad-numpad_bin.cdx.json
+          path: "*.cdx.json"
           if-no-files-found: error
 
       - name: Upload .deb artifact
@@ -196,6 +204,4 @@ jobs:
           files: |
             *.deb
             *.rpm
-            asus-touchpad-numpad_bin.cdx.json
-            deb-sbom.cdx.json
-            rpm-sbom.cdx.json
+            *.cdx.json
