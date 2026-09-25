@@ -205,13 +205,20 @@ The configuration file `config.json` must be placed in the same directory as the
 | `cols` / `rows`               | u8     | Dimensions of the key grid.                                                   |
 | `keymap`                      | array  | Row-major grid of `evdev` key name strings (e.g. `"KEY_KP7"`).                |
 | `top_offset`                  | f32    | Fraction of touchpad height reserved above the key grid (e.g. logo area).     |
-| `double_tap_delay_ms`         | u32    | Double-tap window in ms for unlock-mode. Set to `0` to disable.               |
+| `activation`                  | object | How the numpad is activated (gesture and delay, see below).                   |
 | `allow_calculator`            | bool   | Whether the top-left zone can launch the calculator when NumLock is off.       |
 | `brightness_levels`           | object | Raw I2C values for `low`, `med`, and `high` brightness levels.                |
 | `zones.numlock`               | object | Normalized coordinates (`x_min`, `x_max`, `y_min`, `y_max`) of the NumLock button zone.         |
 | `zones.brightness_calculator` | object | Normalized coordinates (`x_min`, `x_max`, `y_min`, `y_max`) of the brightness/calc zone.        |
 
 Zone coordinates are ratios in `[0.0, 1.0]` relative to the touchpad's physical dimensions. See [Calibrating touch zones](#calibrating-touch-zones) for how to compute them.
+
+### `activation` object
+
+| Field      | Type   | Description                                                                                                          |
+|------------|--------|----------------------------------------------------------------------------------------------------------------------|
+| `mode`     | string | Gesture used to activate the numpad: `"single"` (single tap), `"double"` (double-tap) or `"long"` (long press).      |
+| `delay_ms` | u32    | Delay in ms for long-press / double-tap activation.                                                                  |
 
 ### Example `config.json` (excerpt)
 
@@ -232,7 +239,7 @@ Zone coordinates are ratios in `[0.0, 1.0]` relative to the touchpad's physical 
         "numlock": { "x_min": 0.95, "x_max": 1.0, "y_min": 0.0, "y_max": 0.09 },
         "brightness_calculator": { "x_min": 0.00, "x_max": 0.06, "y_min": 0.0, "y_max": 0.07 }
       },
-      "double_tap_delay_ms": 250,
+      "activation": { "mode": "long", "delay_ms": 250 },
       "allow_calculator": true,
       "top_offset": 0.10,
       "keymap": [
@@ -306,9 +313,14 @@ x_min = 3243 / 4036 = 0.803  →  use 0.80 (with a small safety margin)
 4. **Virtual device** — A `uinput` virtual device named `"Asus Touchpad/Numpad"` is created with the required key capabilities.
 5. **Event loop** — Raw `evdev` events are read continuously and dispatched to the appropriate zone handler or key emitter.
 
-### Double-tap to unlock
+### Numpad activation
 
-When NumLock is off, a single tap is ignored. Two taps within `double_tap_delay_ms` milliseconds temporarily allow the next action (useful for quick calculator access without permanently enabling NumLock).
+The gesture that activates the numpad is configured per layout with the `activation` object:
+
+- `"single"`: a single tap activates the numpad.
+- `"double"`: two taps within `delay_ms` milliseconds activate the numpad.
+- `"long"`: a press held for `delay_ms` milliseconds activates the numpad.
+
 
 ### Backlight brightness cycle
 
