@@ -98,7 +98,7 @@ pub enum ActivationMode {
 
 /// Configuration describing how the feature is activated by the user.
 ///
-/// Combines a gesture ([`activation_mode`](Self::activation_mode))
+/// Combines a gesture ([`mode`](Self::mode))
 /// with a timing parameter ([`delay_ms`](Self::delay_ms)).
 #[derive(Clone, Deserialize, Serialize)]
 pub struct Activation {
