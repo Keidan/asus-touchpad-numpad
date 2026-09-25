@@ -1,4 +1,4 @@
-use crate::config::models::Layout;
+use crate::config::models::{ActivationMode, Layout};
 use crate::log_debug;
 use crate::sys::keyboard::KeyboardLayout;
 use evdev::uinput::VirtualDevice;
@@ -385,15 +385,19 @@ impl Touchpad {
     ///
     /// - **Numlock toggle**: tapping the top-right corner enables or disables the
     ///   numpad overlay, grabbing/releasing the device and toggling the backlight.
+    ///   The same activation gesture is required both to enable and to disable it.
     /// - **Brightness / Calculator**: tapping the top-left corner cycles the
     ///   backlight brightness (when numlock is on) or launches the calculator
     ///   (when numlock is off, if allowed by the layout config).
     /// - **Numpad key press**: tapping anywhere in the grid maps the touch
     ///   coordinates to a `(row, col)` cell and emits the corresponding key event.
     ///   The `%` key automatically includes a `KEY_LEFTSHIFT` modifier.
-    /// - **Double-tap to unlock**: when numlock is off, a double-tap within
-    ///   [`Layout::double_tap_delay_ms`] milliseconds temporarily enables a
-    ///   single action (e.g. open calculator or toggle numlock).
+    /// - **Activation gesture**: the gesture required to toggle numlock is defined
+    ///   per layout by [`Layout::activation`] (see [`Activation`]):
+    ///   - `single`: any tap toggles numlock.
+    ///   - `double`: two taps within `delay_ms` toggle numlock.
+    ///   - `long`: a press held for at least `delay_ms` toggles numlock, evaluated
+    ///     on release.
     ///
     /// # Key release
     ///
@@ -409,9 +413,6 @@ impl Touchpad {
     /// # Errors
     ///
     /// Returns an error if any event fetch, key emit, or I2C command fails.
-    ///
-    /// # Panics
-    ///
     /// Returns an error if the touchpad has not been opened and registered.
     pub fn process_events(
         &mut self,
@@ -428,11 +429,14 @@ impl Touchpad {
         let mut button_pressed: Option<KeyCode> = None;
         let mut numlock: bool = false;
         let mut brightness: Brightness = Brightness::Off;
-        // --- DOUBLE TAP STATE ---
-        let mut last_down = std::time::Instant::now();
-        let mut mode_enabled = false;
-        let double_tap_delay =
-            std::time::Duration::from_millis(self.layout.double_tap_delay_ms.into());
+        // --- ACTIVATION STATE ---
+        let activation: ActivationMode = self.layout.activation.mode;
+        let delay = std::time::Duration::from_millis(self.layout.activation.delay_ms.into());
+        // Double mode: timestamp of the previous tap
+        let mut last_down: Option<std::time::Instant> = None;
+        // Long mode: start time and position of the current press
+        let mut press_start: Option<(std::time::Instant, i32, i32)> = None;
+
 
         loop {
             let events: Vec<InputEvent> = self.device.as_mut().unwrap().fetch_events()?.collect();
@@ -461,6 +465,10 @@ impl Touchpad {
                     y = value;
                     continue;
                 }
+                // `is_down`: a new touch that must be processed immediately.
+                // `activated`: the activation gesture has been recognized.
+                let mut is_down = false;
+                let mut activated = false;
                 // --- BTN_TOOL_FINGER event ---
                 if value == 0 {
                     // Finger lifted: release the currently held key
@@ -482,37 +490,73 @@ impl Touchpad {
                         }
                         button_pressed = None;
                     }
+
+                    // Long press: evaluated on release, using the initial touch position
+                    if let Some((start, px, py)) = press_start.take() {
+                        if matches!(activation, ActivationMode::Long)
+                            && !delay.is_zero()
+                            && start.elapsed() >= delay
+                        {
+                            x = px;
+                            y = py;
+                            activated = true;
+                        }
+                    }
                 } else if value == 1 && button_pressed.is_none() {
+                    is_down = true;
                     let now = std::time::Instant::now();
-                    if now.duration_since(last_down) < double_tap_delay {
-                        mode_enabled = !mode_enabled;
+
+                    match activation {
+                        ActivationMode::Single => activated = true,
+                        ActivationMode::Double => {
+                            let is_double = !delay.is_zero()
+                                && last_down.is_some_and(|t| now.duration_since(t) < delay);
+                            if is_double {
+                                activated = true;
+                                // Reset so that a 3rd quick tap doesn't chain as a new double-tap
+                                last_down = None;
+                            } else {
+                                last_down = Some(now);
+                            }
+                        }
+                        ActivationMode::Long => {
+                            press_start = Some((now, x, y));
+                        }
                     }
-                    last_down = now;
-                    // Finger placed: determine which action or key to trigger
-                    log_debug!(
-                        "finger down at x {} y {} - mode_enabled {}",
-                        x,
-                        y,
-                        mode_enabled
-                    );
 
-                    let fx = x as f32;
-                    let fy = y as f32;
-                    let fmaxx = self.max_x as f32;
-                    let fmaxy = self.max_y as f32;
+                }
 
-                    // --- BLOCK EVERYTHING IF MODE NOT ENABLED ---
-                    if !numlock && !mode_enabled {
-                        continue;
-                    }
-                    mode_enabled = false;
+                // Nothing to process for this event
+                if !is_down && !activated {
+                    continue;
+                }
 
-                    // Top-right corner: toggle numlock
-                    if fx >= self.layout.zones.numlock.x_min * fmaxx
-                        && fx <= self.layout.zones.numlock.x_max * fmaxx
-                        && fy >= self.layout.zones.numlock.y_min * fmaxy
-                        && fy <= self.layout.zones.numlock.y_max * fmaxy
-                    {
+                log_debug!(
+                    "touch at x {} y {} - activated {}",
+                    x,
+                    y,
+                    activated
+                );
+
+                // --- BLOCK EVERYTHING IF NUMPAD NOT ACTIVE AND NO ACTIVATION GESTURE ---
+                if !numlock && !activated {
+                    continue;
+                }
+
+                let fx = x as f32;
+                let fy = y as f32;
+                let fmaxx = self.max_x as f32;
+                let fmaxy = self.max_y as f32;
+
+                // Top-right corner: toggle numlock.
+                // The zone always consumes the touch; only the toggle itself requires
+                // the configured activation gesture (single tap / double-tap / long press).
+                if fx >= self.layout.zones.numlock.x_min * fmaxx
+                    && fx <= self.layout.zones.numlock.x_max * fmaxx
+                    && fy >= self.layout.zones.numlock.y_min * fmaxy
+                    && fy <= self.layout.zones.numlock.y_max * fmaxy
+                {
+                    if activated {
                         numlock = !numlock;
                         if numlock {
                             if Brightness::Off == brightness {
@@ -522,83 +566,84 @@ impl Touchpad {
                         } else {
                             self.deactivate_numlock()?;
                         }
+                    }
+                    continue;
+                }
+
+                // Top-left corner: cycle brightness (numlock on) or open calculator
+                if activated
+                    && fx >= self.layout.zones.brightness_calculator.x_min * fmaxx
+                    && fx <= self.layout.zones.brightness_calculator.x_max * fmaxx
+                    && fy >= self.layout.zones.brightness_calculator.y_min * fmaxy
+                    && fy <= self.layout.zones.brightness_calculator.y_max * fmaxy
+                {
+                    if numlock {
+                        self.change_brightness(&mut brightness)?;
+                    } else if self.layout.allow_calculator {
+                        self.launch_calculator()?;
+                    }
+                    continue;
+                }
+
+                // Outside numpad mode, let the touchpad handle the event normally
+                if !numlock {
+                    continue;
+                }
+
+                // Map touch coordinates to a key grid cell
+                let col = (self.layout.cols as f32 * fx / (fmaxx + 1.0)).floor() as usize;
+                let row_raw = (self.layout.rows as f32 * fy / fmaxy) - self.layout.top_offset;
+
+                // Ignore taps in the top-offset reserved area
+                if row_raw < 0.0 {
+                    continue;
+                }
+                let row = row_raw.floor() as usize;
+
+                let mut key = match keys_layout.get(row).and_then(|r| r.get(col)) {
+                    Some(k) => *k,
+                    None => {
+                        log_debug!(
+                            "Unhandled col/row {}/{} for position {}-{}",
+                            col,
+                            row,
+                            x,
+                            y
+                        );
                         continue;
                     }
+                };
 
-                    // Top-left corner: cycle brightness (numlock on) or open calculator
-                    if fx >= self.layout.zones.brightness_calculator.x_min * fmaxx
-                        && fx <= self.layout.zones.brightness_calculator.x_max * fmaxx
-                        && fy >= self.layout.zones.brightness_calculator.y_min * fmaxy
-                        && fy <= self.layout.zones.brightness_calculator.y_max * fmaxy
-                    {
-                        if numlock {
-                            self.change_brightness(&mut brightness)?;
-                        } else if self.layout.allow_calculator {
-                            self.launch_calculator()?;
-                        }
-                        continue;
-                    }
+                // Remap KEY_5 to the layout-appropriate percentage key
+                if key == KeyCode::KEY_5 {
+                    key = self.percentage_key;
+                }
 
-                    // Outside numpad mode, let the touchpad handle the event normally
-                    if !numlock {
-                        continue;
-                    }
+                button_pressed = Some(key);
+                log_debug!("send press key event {:?}", key);
 
-                    // Map touch coordinates to a key grid cell
-                    let col = (self.layout.cols as f32 * fx / (fmaxx + 1.0)).floor() as usize;
-                    let row_raw = (self.layout.rows as f32 * fy / fmaxy) - self.layout.top_offset;
-
-                    // Ignore taps in the top-offset reserved area
-                    if row_raw < 0.0 {
-                        continue;
-                    }
-                    let row = row_raw.floor() as usize;
-
-                    let mut key = match keys_layout.get(row).and_then(|r| r.get(col)) {
-                        Some(k) => *k,
-                        None => {
-                            log_debug!(
-                                "Unhandled col/row {}/{} for position {}-{}",
-                                col,
-                                row,
-                                x,
-                                y
-                            );
-                            continue;
-                        }
-                    };
-
-                    // Remap KEY_5 to the layout-appropriate percentage key
-                    if key == KeyCode::KEY_5 {
-                        key = self.percentage_key;
-                    }
-
-                    button_pressed = Some(key);
-                    log_debug!("send press key event {:?}", key);
-
-                    // Percentage key requires SHIFT to be held down
-                    if let Err(err) = if key == self.percentage_key {
-                        self.udevice.as_mut().unwrap().emit(&[
-                            InputEvent::new(EventType::KEY.0, KeyCode::KEY_LEFTSHIFT.0, 1),
-                            InputEvent::new(EventType::KEY.0, key.0, 1),
-                            InputEvent::new(
-                                EventType::SYNCHRONIZATION.0,
-                                SynchronizationCode::SYN_REPORT.0,
-                                0,
-                            ),
-                        ])
-                    } else {
-                        self.udevice.as_mut().unwrap().emit(&[
-                            InputEvent::new(EventType::KEY.0, key.0, 1),
-                            InputEvent::new(
-                                EventType::SYNCHRONIZATION.0,
-                                SynchronizationCode::SYN_REPORT.0,
-                                0,
-                            ),
-                        ])
-                    } {
-                        return Err(format!("Cannot send press event: {}", err).into());
-                    }
+                // Percentage key requires SHIFT to be held down
+                if let Err(err) = if key == self.percentage_key {
+                    self.udevice.as_mut().unwrap().emit(&[
+                        InputEvent::new(EventType::KEY.0, KeyCode::KEY_LEFTSHIFT.0, 1),
+                        InputEvent::new(EventType::KEY.0, key.0, 1),
+                        InputEvent::new(
+                            EventType::SYNCHRONIZATION.0,
+                            SynchronizationCode::SYN_REPORT.0,
+                            0,
+                        ),
+                    ])
+                } else {
+                    self.udevice.as_mut().unwrap().emit(&[
+                        InputEvent::new(EventType::KEY.0, key.0, 1),
+                        InputEvent::new(
+                            EventType::SYNCHRONIZATION.0,
+                            SynchronizationCode::SYN_REPORT.0,
+                            0,
+                        ),
+                    ])
+                } {
+                    return Err(format!("Cannot send press event: {}", err).into());
                 }
             }
 

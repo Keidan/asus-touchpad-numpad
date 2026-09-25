@@ -82,6 +82,34 @@ pub struct Zones {
     pub brightness_calculator: Zone,
 }
 
+/// Gesture used to trigger an activation.
+///
+/// Serialized in lowercase (`"long"`, `"double"`).
+#[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ActivationMode {
+    /// Activation by single tap.
+    Single,
+    /// Activation by long press.
+    Long,
+    /// Activation by double-tap.
+    Double,
+}
+
+/// Configuration describing how the feature is activated by the user.
+///
+/// Combines a gesture ([`activation_mode`](Self::activation_mode))
+/// with a timing parameter ([`delay_ms`](Self::delay_ms)).
+#[derive(Clone, Deserialize, Serialize)]
+pub struct Activation {
+    /// The gesture used to trigger the activation.
+    pub mode: ActivationMode,
+    /// Delay, in milliseconds, for long-press / double-tap activation.
+    ///
+    /// A value of `0` disables the delay-based activation.
+    pub delay_ms: u32,
+}
+
 /// Describes the physical layout and key mapping of a numpad touchpad.
 ///
 /// A `Layout` defines the grid dimensions of the numpad area, the fraction
@@ -104,8 +132,8 @@ pub struct Layout {
     /// Touch zones for the special buttons outside the main key grid
     /// (Num Lock, brightness/calculator and coactivator).
     pub zones: Zones,
-    /// Delay in milliseconds for double-tap activation (0 = disabled)
-    pub double_tap_delay_ms: u32,
+    /// How the numpad is activated on this layout (gesture and delay).
+    pub activation: Activation,
     /// Whether the calculator can be launched from the top-left touchpad zone.
     ///
     /// When `true` and Num Lock is inactive, tapping the

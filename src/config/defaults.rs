@@ -1,4 +1,4 @@
-use crate::config::models::{BrightnessLevels, Config, Identify, Layout, Zone, Zones};
+use crate::config::models::{Activation, BrightnessLevels, Config, Identify, Layout, Zone, Zones};
 
 /// Expands a list of string literals into a `Vec<String>`.
 ///
@@ -188,7 +188,10 @@ impl DefaultConfig {
                 },
                 brightness_calculator: Self::default_brightness_calculator_zone(),
             },
-            double_tap_delay_ms: 250,
+            activation: Activation {
+                mode: super::models::ActivationMode::Long,
+                delay_ms: 300
+            },
             allow_calculator: true,
             top_offset: 0.10,
             keymap: Self::keymap_5x4(),
@@ -208,7 +211,10 @@ impl DefaultConfig {
                 numlock: Self::common_numlock_zone(),
                 brightness_calculator: Self::default_brightness_calculator_zone(),
             },
-            double_tap_delay_ms: 250,
+            activation: Activation {
+                mode: super::models::ActivationMode::Long,
+                delay_ms: 300
+            },
             allow_calculator: true,
             top_offset: 0.10,
             keymap: Self::keymap_5x4(),
@@ -247,7 +253,10 @@ impl DefaultConfig {
                 numlock: Self::common_numlock_zone(),
                 brightness_calculator: Self::default_brightness_calculator_zone(),
             },
-            double_tap_delay_ms: 250,
+            activation: Activation {
+                mode: super::models::ActivationMode::Long,
+                delay_ms: 300
+            },
             allow_calculator: true,
             top_offset: 0.0,
             keymap: vec![
