@@ -24,7 +24,10 @@
           "y_max": 0.07
         }
       },
-      "double_tap_delay_ms": 250,
+      "activation": {
+        "mode": "long",
+        "delay_ms": 300
+      },
       "allow_calculator": true,
       "top_offset": 0.1,
       "keymap": [
@@ -81,7 +84,10 @@
           "y_max": 0.07
         }
       },
-      "double_tap_delay_ms": 250,
+      "activation": {
+        "mode": "long",
+        "delay_ms": 300
+      },
       "allow_calculator": true,
       "top_offset": 0.1,
       "keymap": [
@@ -138,7 +144,10 @@
           "y_max": 0.07
         }
       },
-      "double_tap_delay_ms": 250,
+      "activation": {
+        "mode": "long",
+        "delay_ms": 300
+      },
       "allow_calculator": true,
       "top_offset": 0.0,
       "keymap": [
